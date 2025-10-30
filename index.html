@@ -1,284 +1,185 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AhhWeather — Реальная погода</title>
+<meta charset="UTF-8">
+<title>AhhWeather — Жидкое стекло</title>
 <style>
   :root {
-    --accent: #00bfff;
-    --glass: rgba(255,255,255,0.1);
-    --blur: 18px;
-    --text: #fff;
-    --bg: linear-gradient(to bottom, #1e3c72, #2a5298);
+    --glass-bg: rgba(255,255,255,0.05);
+    --glass-border: rgba(255,255,255,0.2);
+    --accent: #4fb3ff;
+    --text-light: #fff;
+    --text-dark: #222;
+    --bg-day: linear-gradient(to bottom, #74ebd5, #ACB6E5);
+    --bg-night: linear-gradient(to bottom, #07121a, #0b1720);
   }
 
-  body {
-    margin: 0;
-    font-family: system-ui, -apple-system, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: start;
-    min-height: 100vh;
-    overflow-x: hidden;
-    transition: background 0.8s ease, color 0.8s ease;
+  html, body {
+    margin:0; padding:0; height:100%; width:100%;
+    font-family: sans-serif; overflow:hidden;
+    background: var(--bg-night);
+    color: var(--text-light);
   }
 
-  .container {
-    margin-top: 60px;
-    width: 90%;
-    max-width: 600px;
-    backdrop-filter: blur(var(--blur));
-    background: var(--glass);
-    border-radius: 30px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    padding: 40px 30px;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
+  body.day { background: var(--bg-day); color: var(--text-dark); }
+
+  .app { position:relative; width:100%; height:100%; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  /* Жидкое стекло */
+  .panel, .gauge-wrap {
+    position:absolute; backdrop-filter: blur(12px) saturate(150%);
+    background: rgba(255,255,255,0.05); border-radius:16px; border:1px solid var(--glass-border);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5); padding:16px;
+    color: inherit; transition: all 0.3s;
   }
 
-  h1 {
-    margin-top: 0;
-    font-size: 32px;
-    letter-spacing: 1px;
-  }
+  .gauge-wrap { top:50%; left:50%; transform:translate(-50%,-50%); width:380px; max-width:90%; z-index:50; }
+  .temp-center { text-align:center; font-size:40px; font-weight:800; margin-top:-10px; }
+  .weather-label { text-align:center; font-size:16px; margin-top:6px; }
 
-  input, button {
-    padding: 12px 18px;
-    font-size: 18px;
-    border-radius: 10px;
-    border: none;
-    outline: none;
-    margin: 10px;
-  }
+  .panel { bottom:20px; left:50%; transform:translateX(-50%); width:92%; max-width:900px; display:flex; justify-content:space-around; flex-wrap:wrap; gap:12px; }
 
-  input {
-    width: 220px;
-    background: rgba(255,255,255,0.2);
-    color: #fff;
-  }
+  /* Спидометр */
+  svg { width:100%; height:220px; }
 
-  button {
-    background: var(--accent);
-    color: #fff;
-    cursor: pointer;
-    transition: transform 0.3s, background 0.3s;
-  }
+  .card { flex:1; min-width:100px; max-width:180px; background: rgba(255,255,255,0.03); border-radius:12px; padding:12px; text-align:center; cursor:pointer; user-select:none; transition: transform 0.2s; }
+  .card:active { transform:translateY(2px); }
+  .card .val { font-size:20px; font-weight:700; }
+  .card .label { font-size:12px; color: rgba(255,255,255,0.7); }
 
-  button:hover { transform: scale(1.05); background: #0099ff; }
+  /* Controls */
+  .controls { margin-top:12px; display:flex; gap:8px; justify-content:center; }
+  input[type="text"] { padding:8px 12px; border-radius:10px; border:none; flex:1; background: rgba(255,255,255,0.05); color:inherit; }
+  button { padding:8px 12px; border-radius:10px; border:none; background: var(--accent); color:#fff; cursor:pointer; }
 
-  .weather-box {
-    margin-top: 20px;
-  }
-
-  .city {
-    font-size: 28px;
-    font-weight: 600;
-    margin-bottom: 10px;
-  }
-
-  .desc { font-size: 22px; margin-bottom: 20px; }
-
-  .gauge-container {
-    display: flex;
-    justify-content: space-around;
-    flex-wrap: wrap;
-  }
-
-  .gauge {
-    width: 160px;
-    height: 80px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 160px 160px 0 0;
-    position: relative;
-    overflow: hidden;
-    margin: 20px;
-  }
-
-  .needle {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    width: 4px;
-    height: 80px;
-    background: var(--accent);
-    transform-origin: bottom;
-    transform: rotate(0deg);
-    transition: transform 1s ease-out;
-  }
-
-  .gauge-label {
-    text-align: center;
-    font-size: 18px;
-    margin-top: -10px;
-  }
-
-  /* Темы */
-  body.light {
-    --bg: linear-gradient(to bottom, #74ebd5, #ACB6E5);
-    --text: #000;
-    --glass: rgba(255,255,255,0.4);
-    --accent: #0077ff;
-  }
-
-  .theme-toggle {
-    position: fixed;
-    top: 15px;
-    right: 15px;
-    font-size: 26px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 50%;
-    width: 52px;
-    height: 52px;
-    border: none;
-    backdrop-filter: blur(10px);
-    cursor: pointer;
-    color: var(--text);
-    transition: all 0.4s;
-    z-index: 10;
-  }
-
-  .theme-toggle:hover { transform: rotate(20deg); }
-
-  /* Эффекты */
-  .cloud, .rain, .flash {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-  }
-
-  .cloud { 
-    background: url('https://i.ibb.co/xsPcsMn/clouds.png') repeat-x;
-    animation: clouds 60s linear infinite;
-    opacity: 0.3;
-  }
-
-  .rain {
-    display: none;
-    background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 2px, transparent 2px, transparent 4px);
-    animation: rain 0.3s linear infinite;
-  }
-
-  .flash {
-    display: none;
-    background: rgba(255,255,255,0.6);
-    animation: flash 0.5s ease-in-out;
-  }
-
-  @keyframes clouds { from { background-position-x: 0; } to { background-position-x: -1000px; } }
-  @keyframes rain { to { background-position-y: 10px; } }
-  @keyframes flash {
-    0%, 100% { opacity: 0; }
-    50% { opacity: 1; }
-  }
 </style>
 </head>
-<body class="dark">
-  <button class="theme-toggle">☀️</button>
+<body>
+<div class="app">
+  <canvas id="sky"></canvas>
+  <canvas id="clouds"></canvas>
+  <canvas id="precip"></canvas>
 
-  <div class="container">
-    <h1>AhhWeather</h1>
-    <input type="text" id="cityInput" placeholder="Введите город..." />
-    <button id="getWeatherBtn">Показать</button>
-
-    <div class="weather-box">
-      <div class="city">—</div>
-      <div class="temp" style="font-size:60px;">--°C</div>
-      <div class="desc">—</div>
-      <div class="gauge-container">
-        <div>
-          <div class="gauge tempGauge"><div class="needle"></div></div>
-          <div class="gauge-label">Температура</div>
-        </div>
-        <div>
-          <div class="gauge windGauge"><div class="needle"></div></div>
-          <div class="gauge-label">Ветер</div>
-        </div>
-        <div>
-          <div class="gauge humidityGauge"><div class="needle"></div></div>
-          <div class="gauge-label">Влажность</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="cloud"></div>
-    <div class="rain"></div>
-    <div class="flash"></div>
+  <div class="gauge-wrap">
+    <svg viewBox="0 0 360 220">
+      <defs>
+        <linearGradient id="gGrad" x1="0" x2="1">
+          <stop offset="0%" stop-color="#4fb3ff"/>
+          <stop offset="50%" stop-color="#7ef0b8"/>
+          <stop offset="100%" stop-color="#ff6b6b"/>
+        </linearGradient>
+      </defs>
+      <g transform="translate(180,180)">
+        <path id="arc-bg" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="18" stroke-linecap="round"></path>
+        <path id="arc-fill" fill="none" stroke="url(#gGrad)" stroke-width="18" stroke-linecap="round"></path>
+        <g id="ticks"></g>
+        <g id="needleG" transform="rotate(0)">
+          <line x1="0" y1="0" x2="0" y2="-88" stroke="#fff" stroke-width="3" stroke-linecap="round"></line>
+          <circle r="6" fill="#fff"></circle>
+        </g>
+      </g>
+    </svg>
+    <div class="temp-center" id="tempCenter">15°C</div>
+    <div class="weather-label" id="weatherLabel">Ясно</div>
   </div>
 
-  <script>
-    const descText = {
-      0: "Ясно", 1: "Преимущественно ясно", 2: "Переменная облачность", 3: "Пасмурно",
-      45: "Туман", 48: "Иней", 51: "Морось", 61: "Дождь", 80: "Ливень", 95: "Гроза"
-    };
+  <div class="panel">
+    <div class="card" id="card-wind"><div class="val" id="val-wind">5 км/ч</div><div class="label">Ветер</div></div>
+    <div class="card" id="card-humidity"><div class="val" id="val-humidity">45%</div><div class="label">Влажность</div></div>
+    <div class="card" id="card-pressure"><div class="val" id="val-pressure">1012 hPa</div><div class="label">Давление</div></div>
+  </div>
 
-    const getWeather = async () => {
-      const city = document.getElementById("cityInput").value.trim();
-      const cityEl = document.querySelector(".city");
-      const tempEl = document.querySelector(".temp");
-      const descEl = document.querySelector(".desc");
-      const tempNeedle = document.querySelector(".tempGauge .needle");
-      const windNeedle = document.querySelector(".windGauge .needle");
-      const humidityNeedle = document.querySelector(".humidityGauge .needle");
-      const rain = document.querySelector(".rain");
-      const flash = document.querySelector(".flash");
-      const cloud = document.querySelector(".cloud");
+  <div class="controls">
+    <input type="text" id="cityInput" placeholder="Введите город">
+    <button id="btnFetch">Показать погоду</button>
+  </div>
+</div>
 
-      if (!city) { cityEl.textContent = "Введите город"; return; }
+<script>
+const tempCenter = document.getElementById("tempCenter");
+const weatherLabel = document.getElementById("weatherLabel");
+const valWind = document.getElementById("val-wind");
+const valHumidity = document.getElementById("val-humidity");
+const valPressure = document.getElementById("val-pressure");
+const arcFill = document.getElementById("arc-fill");
+const needleG = document.getElementById("needleG");
+const ticksG = document.getElementById("ticks");
 
-      try {
-        const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=ru`);
-        const geoData = await geo.json();
-        if (!geoData.results || geoData.results.length === 0) {
-          cityEl.textContent = "Город не найден";
-          return;
-        }
+const minTemp = -25, maxTemp = 40;
 
-        const { latitude, longitude, name, country } = geoData.results[0];
-        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`);
-        const wData = await w.json();
-        const weather = wData.current_weather;
+function polarToCartesian(cx, cy, r, angleDeg){
+  const rad = (angleDeg-90)*Math.PI/180;
+  return {x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad)};
+}
 
-        const desc = descText[weather.weathercode] || "Неизвестно";
-        cityEl.textContent = `${name}, ${country}`;
-        tempEl.textContent = `${weather.temperature.toFixed(1)}°C`;
-        descEl.textContent = desc;
+function describeArc(cx,cy,r,startAngle,endAngle){
+  const start = polarToCartesian(cx,cy,r,endAngle);
+  const end = polarToCartesian(cx,cy,r,startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0":"1";
+  return `M${start.x} ${start.y} A${r} ${r} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
+}
 
-        const angle = ((weather.temperature - 15) / (40 - (-25))) * 180 - 90;
-        tempNeedle.style.transform = `rotate(${Math.min(90, Math.max(-90, angle))}deg)`;
+function mapTempToAngle(temp){
+  const clamped = Math.max(minTemp,Math.min(maxTemp,temp));
+  const ratio = (clamped-minTemp)/(maxTemp-minTemp);
+  return -120 + ratio*240;
+}
 
-        const windAngle = Math.min(90, Math.max(-90, (weather.windspeed - 10) * 3));
-        windNeedle.style.transform = `rotate(${windAngle}deg)`;
-
-        humidityNeedle.style.transform = `rotate(${Math.random()*180-90}deg)`; // случайная визуализация
-
-        // Визуальные эффекты
-        rain.style.display = desc.includes("дожд") || desc.includes("ливень") ? "block" : "none";
-        cloud.style.opacity = desc.includes("обла") || desc.includes("пасмур") ? "0.5" : "0.3";
-        if (desc.includes("гроза")) {
-          flash.style.display = "block";
-          setTimeout(()=> flash.style.display = "none", 400);
-        }
-      } catch {
-        cityEl.textContent = "Ошибка сети";
-      }
-    };
-
-    document.getElementById("getWeatherBtn").addEventListener("click", getWeather);
-
-    const toggle = document.querySelector(".theme-toggle");
-    const body = document.body;
-    function setTheme(mode){
-      if(mode==="light"){body.classList.add("light");toggle.textContent="🌙";localStorage.setItem("theme","light");}
-      else{body.classList.remove("light");toggle.textContent="☀️";localStorage.setItem("theme","dark");}
+function renderTicks(){
+  let html='';
+  for(let i=0;i<=12;i++){
+    const t=minTemp + i*(maxTemp-minTemp)/12;
+    const angle = mapTempToAngle(t);
+    const p1 = polarToCartesian(0,0,120,angle);
+    const p2 = polarToCartesian(0,0,110,angle);
+    html+=`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>`;
+    if(i%3===0){
+      const l = polarToCartesian(0,0,95,angle);
+      html+=`<text x="${l.x}" y="${l.y+4}" font-size="10" fill="#cfe9e5" text-anchor="middle">${Math.round(t)}</text>`;
     }
-    toggle.addEventListener("click",()=>setTheme(localStorage.getItem("theme")==="dark"?"light":"dark"));
-    setTheme(localStorage.getItem("theme")||"dark");
-  </script>
+  }
+  ticksG.innerHTML=html;
+}
+
+renderTicks();
+
+function updateGauge(temp){
+  const angle = mapTempToAngle(temp);
+  arcFill.setAttribute('d',describeArc(0,0,120,-120,angle));
+  needleG.setAttribute('transform',`rotate(${angle})`);
+}
+
+function setWeather(temp,label,wind,hum,press){
+  tempCenter.textContent=temp+"°C";
+  weatherLabel.textContent=label;
+  valWind.textContent=wind+" км/ч";
+  valHumidity.textContent=hum+"%";
+  valPressure.textContent=press+" hPa";
+  updateGauge(temp);
+}
+
+// Тестовые данные
+setWeather(15,"Ясно",5,45,1012);
+
+// Можно подключить Open-Meteo или вручную менять
+document.getElementById("btnFetch").addEventListener("click",async()=>{
+  const city = document.getElementById("cityInput").value.trim();
+  if(!city) return alert("Введите город");
+
+  try{
+    const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ru`);
+    const geoData = await geo.json();
+    if(!geoData.results || geoData.results.length===0) return alert("Город не найден");
+    const {latitude,longitude,name,country} = geoData.results[0];
+
+    const weather = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`).then(r=>r.json());
+    const w = weather.current_weather;
+    setWeather(Math.round(w.temperature), "Сейчас", Math.round(w.windspeed),0,0);
+  }catch(e){ alert("Ошибка получения данных") }
+});
+
+// Тут можно добавить анимацию облаков, дождя, эффекты
+</script>
 </body>
 </html>
