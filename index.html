@@ -7,25 +7,23 @@
 :root {
   --accent: #4fb3ff;
   --muted: rgba(255,255,255,0.6);
-  --bg-day: linear-gradient(180deg,#7bd1c8,#9fb9ec);
-  --bg-night: linear-gradient(180deg,#020617,#0b1720);
 }
-body,html{height:100%;margin:0;font-family:sans-serif;color:#fff;background:var(--bg-night);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+html, body { margin:0; height:100%; font-family:sans-serif; background:#020617; color:white; overflow:hidden;}
 .app{position:relative;width:100%;height:100%;}
 .scene{position:absolute;inset:0;}
 canvas{position:absolute;inset:0;width:100%;height:100%;}
 .gauge-wrap{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:360px;padding:20px;border-radius:16px;
-  background:rgba(255,255,255,0.05);
-  backdrop-filter:blur(12px) saturate(150%);
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(14px) saturate(150%);
   box-shadow:0 8px 30px rgba(0,0,0,0.5);
 }
 .gauge-svg{width:100%;height:220px;display:block;margin:0 auto;}
 .temp-center{font-size:36px;font-weight:700;text-align:center;margin-top:-30px;}
 .small{font-size:14px;color:var(--muted);text-align:center;}
 input,button{padding:8px 12px;border-radius:10px;border:none;font-size:14px;}
-button{cursor:pointer;background:linear-gradient(180deg,#4fb3ff,#2b8e88);}
+button{cursor:pointer;background:linear-gradient(180deg,#4fb3ff,#2b8e88);color:#fff;}
 .cards{display:flex;gap:10px;margin-top:12px;justify-content:center;flex-wrap:wrap;}
 .card{flex:1;min-width:80px;max-width:130px;background:rgba(255,255,255,0.05);border-radius:12px;padding:8px;text-align:center;cursor:pointer;transition:0.3s;}
 .card .val{font-weight:700;font-size:18px;}
@@ -38,6 +36,7 @@ button{cursor:pointer;background:linear-gradient(180deg,#4fb3ff,#2b8e88);}
     <canvas id="sky"></canvas>
     <canvas id="clouds"></canvas>
   </section>
+
   <div class="gauge-wrap">
     <div>
       <input id="cityInput" type="text" placeholder="Введите город">
@@ -71,14 +70,26 @@ button{cursor:pointer;background:linear-gradient(180deg,#4fb3ff,#2b8e88);}
 </div>
 
 <script>
-// --------- Sky & Clouds (простая анимация)
-const skyC = document.getElementById('sky').getContext('2d');
-const cloudC = document.getElementById('clouds').getContext('2d');
+// --- Canvas setup
+const skyC=document.getElementById('sky').getContext('2d');
+const cloudC=document.getElementById('clouds').getContext('2d');
 function resizeCanvas(){ [skyC.canvas,cloudC.canvas].forEach(c=>{c.width=window.innerWidth;c.height=window.innerHeight;}); }
 window.addEventListener('resize',resizeCanvas);
 resizeCanvas();
 
-let clouds = [];
+// --- Sky gradient
+function drawSky(){
+  const c=skyC;
+  const w=c.canvas.width,h=c.canvas.height;
+  const g=c.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'#07121a'); g.addColorStop(1,'#0b1720');
+  c.fillStyle=g;
+  c.fillRect(0,0,w,h);
+}
+drawSky();
+
+// --- Clouds
+let clouds=[];
 for(let i=0;i<20;i++){ clouds.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight*0.5,size:80+Math.random()*120,vx:0.2+Math.random()*0.3}); }
 function drawClouds(){
   cloudC.clearRect(0,0,cloudC.canvas.width,cloudC.canvas.height);
@@ -88,16 +99,16 @@ function drawClouds(){
 }
 drawClouds();
 
-// --------- Gauge
-const arcBg = document.getElementById('arc-bg');
-const arcFill = document.getElementById('arc-fill');
-const needleG = document.getElementById('needleG');
-const tempCenter = document.getElementById('tempCenter');
-const weatherLabel = document.getElementById('weatherLabel');
+// --- Gauge
+const arcBg=document.getElementById('arc-bg');
+const arcFill=document.getElementById('arc-fill');
+const needleG=document.getElementById('needleG');
+const tempCenter=document.getElementById('tempCenter');
+const weatherLabel=document.getElementById('weatherLabel');
 const minTemp=-25,maxTemp=40;
 function polarToCartesian(cx,cy,r,angle){const rad=(angle-90)*Math.PI/180; return {x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)};}
 function describeArc(cx,cy,r,startAngle,endAngle){ const start=polarToCartesian(cx,cy,r,endAngle); const end=polarToCartesian(cx,cy,r,startAngle); const largeArcFlag=endAngle-startAngle<=180?"0":"1"; return ["M",start.x,start.y,"A",r,r,0,largeArcFlag,0,end.x,end.y].join(" "); }
-function mapTempToAngle(t){ const a=-120+( (t-minTemp)/(maxTemp-minTemp)*240 ); return a; }
+function mapTempToAngle(t){ return -120+((t-minTemp)/(maxTemp-minTemp)*240); }
 function updateGauge(temp){
   arcBg.setAttribute('d',describeArc(0,0,120,-120,120));
   arcFill.setAttribute('d',describeArc(0,0,120,-120,mapTempToAngle(temp)));
@@ -105,16 +116,17 @@ function updateGauge(temp){
   tempCenter.innerText=temp+'°C';
 }
 
-// --------- Fetch Weather
+// --- Weather fetch
 const valHumidity=document.getElementById('val-humidity');
 const valPressure=document.getElementById('val-pressure');
 const valWind=document.getElementById('val-wind');
+
 document.getElementById('btnFetch').addEventListener('click',async()=>{
   const city=document.getElementById('cityInput').value.trim();
-  if(!city)return alert("Введите город");
+  if(!city) return alert("Введите город");
   try{
     const geo=await(await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ru`)).json();
-    if(!geo.results||geo.results.length==0)return alert("Город не найден");
+    if(!geo.results||geo.results.length==0) return alert("Город не найден");
     const {latitude,longitude,name}=geo.results[0];
     const wData=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m,pressure_msl&timezone=auto`)).json();
     const w=wData.current_weather;
