@@ -2,114 +2,210 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>iOS6 Weather Mockup</title>
+<title>Погода iOS6</title>
 <style>
+  /* --- Сброс и базовые стили --- */
   html, body {
-    margin:0; padding:0; height:100%; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-    background: linear-gradient(to bottom, #a0c4ff, #ffffff);
-    color: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    margin:0;
+    padding:0;
+    height:100%;
+    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    color:#fff;
+    background: linear-gradient(to bottom, #00bfff, #1e90ff); /* день */
+    overflow:hidden;
   }
+
+  body.night {
+    background: linear-gradient(to bottom, #000000, #1a1a2e); /* ночь */
+  }
+
+  /* --- Контейнер --- */
   .weather-app {
-    width: 320px;
-    height: 480px;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-    background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
-    backdrop-filter: blur(10px);
-    display: flex;
-    flex-direction: column;
-  }
-  .header {
-    padding: 20px;
-    text-align: center;
-    font-weight: bold;
-    font-size: 20px;
-  }
-  .temp {
-    flex:1;
     display:flex;
     flex-direction:column;
+    height:100%;
     justify-content:center;
     align-items:center;
-    font-size: 72px;
-    font-weight: 200;
+    text-align:center;
+    padding:20px;
+    box-sizing:border-box;
   }
+
+  /* --- Название города --- */
+  .city {
+    font-size:28px;
+    font-weight:bold;
+    margin-bottom:8px;
+  }
+
+  /* --- Температура --- */
+  .temperature {
+    font-size:72px;
+    font-weight:300;
+    margin-bottom:8px;
+  }
+
+  /* --- Состояние погоды --- */
   .condition {
-    font-size: 20px;
-    margin-top: 10px;
+    font-size:22px;
+    font-weight:300;
+    margin-bottom:20px;
   }
-  .details {
+
+  /* --- Мини-метрики (ветер, влажность, давление) --- */
+  .metrics {
     display:flex;
-    justify-content: space-around;
-    padding: 10px 0;
-    border-top: 1px solid rgba(0,0,0,0.1);
-    border-bottom: 1px solid rgba(0,0,0,0.1);
-    background: rgba(255,255,255,0.1);
+    justify-content:center;
+    gap:20px;
+    margin-bottom:30px;
   }
-  .detail {
+  .metric {
     display:flex;
     flex-direction:column;
     align-items:center;
     font-size:14px;
+    width:60px;
+    padding:8px;
+    border-radius:12px;
+    background: rgba(255,255,255,0.1);
   }
-  .detail .val {
+  .metric .value {
     font-weight:bold;
-    font-size: 18px;
+    font-size:18px;
+    margin-bottom:2px;
   }
+
+  /* --- Прогноз на дни --- */
   .forecast {
     display:flex;
-    justify-content: space-around;
-    padding: 10px 0;
+    justify-content:center;
+    gap:12px;
+    font-size:14px;
   }
-  .day {
+  .forecast-day {
     display:flex;
     flex-direction:column;
     align-items:center;
-    font-size:14px;
-  }
-  .day .icon {
-    font-size:24px;
-  }
-  .city-input {
-    padding: 10px;
-    text-align:center;
-    border-top:1px solid rgba(0,0,0,0.1);
     background: rgba(255,255,255,0.1);
+    padding:10px;
+    border-radius:10px;
+    width:60px;
+  }
+  .forecast-day img {
+    width:32px;
+    height:32px;
+    margin-bottom:4px;
+  }
+
+  /* --- Поле ввода города --- */
+  .city-input {
+    position:absolute;
+    top:10px;
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    gap:6px;
   }
   .city-input input {
-    width:80%;
-    padding:5px;
-    border-radius:10px;
-    border:1px solid rgba(0,0,0,0.2);
-    text-align:center;
+    padding:6px 10px;
+    border-radius:6px;
+    border:none;
+    outline:none;
+    font-size:14px;
+  }
+  .city-input button {
+    padding:6px 10px;
+    border:none;
+    border-radius:6px;
+    background:#fff;
+    color:#007aff;
+    font-weight:bold;
+    cursor:pointer;
   }
 </style>
 </head>
 <body>
-  <div class="weather-app">
-    <div class="header">Москва</div>
-    <div class="temp">
-      18°<div class="condition">Пасмурно</div>
+<div class="weather-app">
+  <div class="city" id="city">Москва</div>
+  <div class="temperature" id="temp">15°</div>
+  <div class="condition" id="condition">Ясно</div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="value" id="wind">5 м/с</div>
+      <div class="label">Ветер</div>
     </div>
-    <div class="details">
-      <div class="detail"><div class="val">12 км/ч</div>Ветер</div>
-      <div class="detail"><div class="val">65%</div>Влажность</div>
-      <div class="detail"><div class="val">1012</div>Давление</div>
+    <div class="metric">
+      <div class="value" id="humidity">60%</div>
+      <div class="label">Влажность</div>
     </div>
-    <div class="forecast">
-      <div class="day"><div class="icon">☀️</div>Пн<div class="temp">20°</div></div>
-      <div class="day"><div class="icon">🌤️</div>Вт<div class="temp">18°</div></div>
-      <div class="day"><div class="icon">🌧️</div>Ср<div class="temp">16°</div></div>
-      <div class="day"><div class="icon">☁️</div>Чт<div class="temp">17°</div></div>
-      <div class="day"><div class="icon">⛈️</div>Пт<div class="temp">15°</div></div>
-    </div>
-    <div class="city-input">
-      <input type="text" placeholder="Введите город">
+    <div class="metric">
+      <div class="value" id="pressure">1015</div>
+      <div class="label">Давление</div>
     </div>
   </div>
+
+  <div class="forecast">
+    <div class="forecast-day">
+      <div>Пн</div>
+      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
+      <div>18°/10°</div>
+    </div>
+    <div class="forecast-day">
+      <div>Вт</div>
+      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
+      <div>20°/12°</div>
+    </div>
+    <div class="forecast-day">
+      <div>Ср</div>
+      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
+      <div>19°/11°</div>
+    </div>
+    <div class="forecast-day">
+      <div>Чт</div>
+      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
+      <div>21°/13°</div>
+    </div>
+    <div class="forecast-day">
+      <div>Пт</div>
+      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
+      <div>17°/9°</div>
+    </div>
+  </div>
+</div>
+
+<div class="city-input">
+  <input type="text" id="cityField" placeholder="Введите город">
+  <button id="btnSetCity">OK</button>
+</div>
+
+<script>
+  const cityEl = document.getElementById('city');
+  const tempEl = document.getElementById('temp');
+  const conditionEl = document.getElementById('condition');
+  const btnSetCity = document.getElementById('btnSetCity');
+  const cityField = document.getElementById('cityField');
+
+  // Простая имитация изменения города и данных
+  btnSetCity.addEventListener('click', ()=>{
+    const val = cityField.value.trim();
+    if(!val) return;
+    cityEl.textContent = val;
+    // генерируем случайные данные
+    const t = Math.floor(Math.random()*25); 
+    tempEl.textContent = t + "°";
+    const conds = ["Ясно","Пасмурно","Дождь","Снег","Облачно"];
+    conditionEl.textContent = conds[Math.floor(Math.random()*conds.length)];
+  });
+
+  // Ночь/день по времени
+  function updateBackground(){
+    const h = new Date().getHours();
+    if(h>=19 || h<6) document.body.classList.add('night');
+    else document.body.classList.remove('night');
+  }
+  updateBackground();
+  setInterval(updateBackground,60000);
+</script>
 </body>
 </html>
