@@ -2,143 +2,114 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>AhhWeather</title>
+<title>iOS6 Weather Mockup</title>
 <style>
-:root {
-  --accent: #4fb3ff;
-  --muted: rgba(255,255,255,0.6);
-}
-html, body { margin:0; height:100%; font-family:sans-serif; background:#020617; color:white; overflow:hidden;}
-.app{position:relative;width:100%;height:100%;}
-.scene{position:absolute;inset:0;}
-canvas{position:absolute;inset:0;width:100%;height:100%;}
-.gauge-wrap{
-  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:360px;padding:20px;border-radius:16px;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(14px) saturate(150%);
-  box-shadow:0 8px 30px rgba(0,0,0,0.5);
-}
-.gauge-svg{width:100%;height:220px;display:block;margin:0 auto;}
-.temp-center{font-size:36px;font-weight:700;text-align:center;margin-top:-30px;}
-.small{font-size:14px;color:var(--muted);text-align:center;}
-input,button{padding:8px 12px;border-radius:10px;border:none;font-size:14px;}
-button{cursor:pointer;background:linear-gradient(180deg,#4fb3ff,#2b8e88);color:#fff;}
-.cards{display:flex;gap:10px;margin-top:12px;justify-content:center;flex-wrap:wrap;}
-.card{flex:1;min-width:80px;max-width:130px;background:rgba(255,255,255,0.05);border-radius:12px;padding:8px;text-align:center;cursor:pointer;transition:0.3s;}
-.card .val{font-weight:700;font-size:18px;}
-.card .label{font-size:12px;color:var(--muted);}
+  html, body {
+    margin:0; padding:0; height:100%; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: linear-gradient(to bottom, #a0c4ff, #ffffff);
+    color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .weather-app {
+    width: 320px;
+    height: 480px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    padding: 20px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 20px;
+  }
+  .temp {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    font-size: 72px;
+    font-weight: 200;
+  }
+  .condition {
+    font-size: 20px;
+    margin-top: 10px;
+  }
+  .details {
+    display:flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.1);
+  }
+  .detail {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    font-size:14px;
+  }
+  .detail .val {
+    font-weight:bold;
+    font-size: 18px;
+  }
+  .forecast {
+    display:flex;
+    justify-content: space-around;
+    padding: 10px 0;
+  }
+  .day {
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    font-size:14px;
+  }
+  .day .icon {
+    font-size:24px;
+  }
+  .city-input {
+    padding: 10px;
+    text-align:center;
+    border-top:1px solid rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.1);
+  }
+  .city-input input {
+    width:80%;
+    padding:5px;
+    border-radius:10px;
+    border:1px solid rgba(0,0,0,0.2);
+    text-align:center;
+  }
 </style>
 </head>
 <body>
-<div class="app">
-  <section class="scene">
-    <canvas id="sky"></canvas>
-    <canvas id="clouds"></canvas>
-  </section>
-
-  <div class="gauge-wrap">
-    <div>
-      <input id="cityInput" type="text" placeholder="Введите город">
-      <button id="btnFetch">Показать</button>
+  <div class="weather-app">
+    <div class="header">Москва</div>
+    <div class="temp">
+      18°<div class="condition">Пасмурно</div>
     </div>
-    <svg class="gauge-svg" viewBox="0 0 360 220">
-      <defs>
-        <linearGradient id="grad" x1="0" x2="1">
-          <stop offset="0%" stop-color="#4fb3ff"/>
-          <stop offset="50%" stop-color="#7ef0b8"/>
-          <stop offset="100%" stop-color="#ff6b6b"/>
-        </linearGradient>
-      </defs>
-      <g transform="translate(180,180)">
-        <path id="arc-bg" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="18" stroke-linecap="round"></path>
-        <path id="arc-fill" fill="none" stroke="url(#grad)" stroke-width="18" stroke-linecap="round"></path>
-        <g id="needleG" transform="rotate(0)">
-          <line x1="0" y1="0" x2="0" y2="-88" stroke="#fff" stroke-width="3"/>
-          <circle r="6" fill="#fff"/>
-        </g>
-      </g>
-    </svg>
-    <div class="temp-center" id="tempCenter">—°C</div>
-    <div class="small" id="weatherLabel">—</div>
-    <div class="cards">
-      <div class="card"><div class="val" id="val-humidity">—</div><div class="label">Влажность</div></div>
-      <div class="card"><div class="val" id="val-pressure">—</div><div class="label">Давление</div></div>
-      <div class="card"><div class="val" id="val-wind">—</div><div class="label">Ветер</div></div>
+    <div class="details">
+      <div class="detail"><div class="val">12 км/ч</div>Ветер</div>
+      <div class="detail"><div class="val">65%</div>Влажность</div>
+      <div class="detail"><div class="val">1012</div>Давление</div>
+    </div>
+    <div class="forecast">
+      <div class="day"><div class="icon">☀️</div>Пн<div class="temp">20°</div></div>
+      <div class="day"><div class="icon">🌤️</div>Вт<div class="temp">18°</div></div>
+      <div class="day"><div class="icon">🌧️</div>Ср<div class="temp">16°</div></div>
+      <div class="day"><div class="icon">☁️</div>Чт<div class="temp">17°</div></div>
+      <div class="day"><div class="icon">⛈️</div>Пт<div class="temp">15°</div></div>
+    </div>
+    <div class="city-input">
+      <input type="text" placeholder="Введите город">
     </div>
   </div>
-</div>
-
-<script>
-// --- Canvas setup
-const skyC=document.getElementById('sky').getContext('2d');
-const cloudC=document.getElementById('clouds').getContext('2d');
-function resizeCanvas(){ [skyC.canvas,cloudC.canvas].forEach(c=>{c.width=window.innerWidth;c.height=window.innerHeight;}); }
-window.addEventListener('resize',resizeCanvas);
-resizeCanvas();
-
-// --- Sky gradient
-function drawSky(){
-  const c=skyC;
-  const w=c.canvas.width,h=c.canvas.height;
-  const g=c.createLinearGradient(0,0,0,h);
-  g.addColorStop(0,'#07121a'); g.addColorStop(1,'#0b1720');
-  c.fillStyle=g;
-  c.fillRect(0,0,w,h);
-}
-drawSky();
-
-// --- Clouds
-let clouds=[];
-for(let i=0;i<20;i++){ clouds.push({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight*0.5,size:80+Math.random()*120,vx:0.2+Math.random()*0.3}); }
-function drawClouds(){
-  cloudC.clearRect(0,0,cloudC.canvas.width,cloudC.canvas.height);
-  cloudC.fillStyle='rgba(255,255,255,0.3)';
-  clouds.forEach(c=>{ cloudC.beginPath(); cloudC.ellipse(c.x,c.y,c.size*1.2,c.size*0.6,0,0,2*Math.PI); cloudC.fill(); c.x+=c.vx; if(c.x>cloudC.canvas.width+100)c.x=-100; });
-  requestAnimationFrame(drawClouds);
-}
-drawClouds();
-
-// --- Gauge
-const arcBg=document.getElementById('arc-bg');
-const arcFill=document.getElementById('arc-fill');
-const needleG=document.getElementById('needleG');
-const tempCenter=document.getElementById('tempCenter');
-const weatherLabel=document.getElementById('weatherLabel');
-const minTemp=-25,maxTemp=40;
-function polarToCartesian(cx,cy,r,angle){const rad=(angle-90)*Math.PI/180; return {x:cx+r*Math.cos(rad),y:cy+r*Math.sin(rad)};}
-function describeArc(cx,cy,r,startAngle,endAngle){ const start=polarToCartesian(cx,cy,r,endAngle); const end=polarToCartesian(cx,cy,r,startAngle); const largeArcFlag=endAngle-startAngle<=180?"0":"1"; return ["M",start.x,start.y,"A",r,r,0,largeArcFlag,0,end.x,end.y].join(" "); }
-function mapTempToAngle(t){ return -120+((t-minTemp)/(maxTemp-minTemp)*240); }
-function updateGauge(temp){
-  arcBg.setAttribute('d',describeArc(0,0,120,-120,120));
-  arcFill.setAttribute('d',describeArc(0,0,120,-120,mapTempToAngle(temp)));
-  needleG.setAttribute('transform',`rotate(${mapTempToAngle(temp)})`);
-  tempCenter.innerText=temp+'°C';
-}
-
-// --- Weather fetch
-const valHumidity=document.getElementById('val-humidity');
-const valPressure=document.getElementById('val-pressure');
-const valWind=document.getElementById('val-wind');
-
-document.getElementById('btnFetch').addEventListener('click',async()=>{
-  const city=document.getElementById('cityInput').value.trim();
-  if(!city) return alert("Введите город");
-  try{
-    const geo=await(await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=ru`)).json();
-    if(!geo.results||geo.results.length==0) return alert("Город не найден");
-    const {latitude,longitude,name}=geo.results[0];
-    const wData=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m,pressure_msl&timezone=auto`)).json();
-    const w=wData.current_weather;
-    const humidity=wData.hourly.relativehumidity_2m[0]||0;
-    const pressure=wData.hourly.pressure_msl[0]||0;
-    valHumidity.innerText=humidity+'%';
-    valPressure.innerText=pressure+' hPa';
-    valWind.innerText=w.windspeed+' км/ч';
-    updateGauge(Math.round(w.temperature));
-    weatherLabel.innerText=w.temperature+"°C в "+name;
-  }catch(e){console.error(e);alert("Ошибка данных");}
-});
-</script>
 </body>
 </html>
