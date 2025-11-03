@@ -1,211 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>Погода iOS6</title>
-<style>
-  /* --- Сброс и базовые стили --- */
-  html, body {
-    margin:0;
-    padding:0;
-    height:100%;
-    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
-    color:#fff;
-    background: linear-gradient(to bottom, #00bfff, #1e90ff); /* день */
-    overflow:hidden;
-  }
-
-  body.night {
-    background: linear-gradient(to bottom, #000000, #1a1a2e); /* ночь */
-  }
-
-  /* --- Контейнер --- */
-  .weather-app {
-    display:flex;
-    flex-direction:column;
-    height:100%;
-    justify-content:center;
-    align-items:center;
-    text-align:center;
-    padding:20px;
-    box-sizing:border-box;
-  }
-
-  /* --- Название города --- */
-  .city {
-    font-size:28px;
-    font-weight:bold;
-    margin-bottom:8px;
-  }
-
-  /* --- Температура --- */
-  .temperature {
-    font-size:72px;
-    font-weight:300;
-    margin-bottom:8px;
-  }
-
-  /* --- Состояние погоды --- */
-  .condition {
-    font-size:22px;
-    font-weight:300;
-    margin-bottom:20px;
-  }
-
-  /* --- Мини-метрики (ветер, влажность, давление) --- */
-  .metrics {
-    display:flex;
-    justify-content:center;
-    gap:20px;
-    margin-bottom:30px;
-  }
-  .metric {
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    font-size:14px;
-    width:60px;
-    padding:8px;
-    border-radius:12px;
-    background: rgba(255,255,255,0.1);
-  }
-  .metric .value {
-    font-weight:bold;
-    font-size:18px;
-    margin-bottom:2px;
-  }
-
-  /* --- Прогноз на дни --- */
-  .forecast {
-    display:flex;
-    justify-content:center;
-    gap:12px;
-    font-size:14px;
-  }
-  .forecast-day {
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    background: rgba(255,255,255,0.1);
-    padding:10px;
-    border-radius:10px;
-    width:60px;
-  }
-  .forecast-day img {
-    width:32px;
-    height:32px;
-    margin-bottom:4px;
-  }
-
-  /* --- Поле ввода города --- */
-  .city-input {
-    position:absolute;
-    top:10px;
-    left:50%;
-    transform:translateX(-50%);
-    display:flex;
-    gap:6px;
-  }
-  .city-input input {
-    padding:6px 10px;
-    border-radius:6px;
-    border:none;
-    outline:none;
-    font-size:14px;
-  }
-  .city-input button {
-    padding:6px 10px;
-    border:none;
-    border-radius:6px;
-    background:#fff;
-    color:#007aff;
-    font-weight:bold;
-    cursor:pointer;
-  }
-</style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Погода — iOS6 style</title>
+<link rel="stylesheet" href="style.css" />
 </head>
 <body>
-<div class="weather-app">
-  <div class="city" id="city">Москва</div>
-  <div class="temperature" id="temp">15°</div>
-  <div class="condition" id="condition">Ясно</div>
+<div id="app" class="app">
+  <header class="top-bar">
+    <button id="btn-location" class="btn small">Использовать местоположение</button>
+    <div class="title">Погода</div>
+    <input id="input-city" class="search" placeholder="Город (Enter)" />
+  </header>
 
-  <div class="metrics">
-    <div class="metric">
-      <div class="value" id="wind">5 м/с</div>
-      <div class="label">Ветер</div>
-    </div>
-    <div class="metric">
-      <div class="value" id="humidity">60%</div>
-      <div class="label">Влажность</div>
-    </div>
-    <div class="metric">
-      <div class="value" id="pressure">1015</div>
-      <div class="label">Давление</div>
-    </div>
-  </div>
+  <main class="main">
+    <section class="hero">
+      <div id="bg" class="bg-layer"></div>
+      <div class="overlay"></div>
 
-  <div class="forecast">
-    <div class="forecast-day">
-      <div>Пн</div>
-      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
-      <div>18°/10°</div>
-    </div>
-    <div class="forecast-day">
-      <div>Вт</div>
-      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
-      <div>20°/12°</div>
-    </div>
-    <div class="forecast-day">
-      <div>Ср</div>
-      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
-      <div>19°/11°</div>
-    </div>
-    <div class="forecast-day">
-      <div>Чт</div>
-      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
-      <div>21°/13°</div>
-    </div>
-    <div class="forecast-day">
-      <div>Пт</div>
-      <img src="https://i.ibb.co/0c0wYwT/sunny.png" alt="Ясно">
-      <div>17°/9°</div>
-    </div>
-  </div>
+      <div class="hero-inner">
+        <div id="city" class="city">—</div>
+        <div class="temp-row">
+          <div id="temp" class="temp">--°</div>
+          <div id="cond" class="cond">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="forecast">
+      <div id="loader" class="loader">Загрузка…</div>
+      <table id="forecast-table" class="forecast-table hidden" aria-hidden="true"></table>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="credits">Данные: Open‑Meteo • Дизайн: iOS6-like</div>
+  </footer>
 </div>
 
-<div class="city-input">
-  <input type="text" id="cityField" placeholder="Введите город">
-  <button id="btnSetCity">OK</button>
-</div>
-
-<script>
-  const cityEl = document.getElementById('city');
-  const tempEl = document.getElementById('temp');
-  const conditionEl = document.getElementById('condition');
-  const btnSetCity = document.getElementById('btnSetCity');
-  const cityField = document.getElementById('cityField');
-
-  // Простая имитация изменения города и данных
-  btnSetCity.addEventListener('click', ()=>{
-    const val = cityField.value.trim();
-    if(!val) return;
-    cityEl.textContent = val;
-    // генерируем случайные данные
-    const t = Math.floor(Math.random()*25); 
-    tempEl.textContent = t + "°";
-    const conds = ["Ясно","Пасмурно","Дождь","Снег","Облачно"];
-    conditionEl.textContent = conds[Math.floor(Math.random()*conds.length)];
-  });
-
-  // Ночь/день по времени
-  function updateBackground(){
-    const h = new Date().getHours();
-    if(h>=19 || h<6) document.body.classList.add('night');
-    else document.body.classList.remove('night');
-  }
-  updateBackground();
-  setInterval(updateBackground,60000);
-</script>
+<script src="app.js"></script>
 </body>
 </html>
