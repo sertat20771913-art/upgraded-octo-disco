@@ -1,144 +1,697 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Погода iOS6</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>AhhWeather — красивый прогноз</title>
+<meta name="description" content="Погода с динамическими визуальными эффектами (clouds, rain, lightning) и реальными данными Open-Meteo" />
 <style>
-/* Шрифты и общий стиль iOS6 */
-body{margin:0;font-family:"Helvetica Neue", Helvetica, Arial,sans-serif;background:#0b2b4a;color:white;}
-#app{display:flex;flex-direction:column;height:100vh;}
-.top-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:linear-gradient(#d8d8d8,#b5b5b5);color:#000;font-weight:600;}
-.top-bar button{border:none;border-radius:6px;padding:6px 10px;background:#007aff;color:white;cursor:pointer;font-size:13px;}
-.top-bar input{border:1px solid #ccc;border-radius:6px;padding:4px 6px;width:120px;}
-.main{flex:1;display:flex;flex-direction:column;}
-.hero{position:relative;flex:0 0 40%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;}
-.hero .city{font-size:22px;font-weight:600;margin-bottom:4px;}
-.hero .temp{font-size:72px;font-weight:200;margin:0;}
-.hero .desc{font-size:16px;opacity:0.9;margin-top:4px;}
-.bg-layer{position:absolute;top:0;left:0;width:100%;height:100%;z-index:-1;transition:background 0.3s;border-radius:0;}
-.forecast{flex:1;overflow:auto;padding:8px;}
-.forecast table{width:100%;border-collapse:collapse;}
-.forecast td{padding:8px;color:white;}
-.day{width:40%;font-weight:600;}
-.temps{width:40%;text-align:center;}
-.icon{width:20%;text-align:right;}
-.loader{text-align:center;padding:20px;}
-img.weather-icon{width:24px;height:24px;vertical-align:middle;}
+  :root{
+    --bg-dark-0: #06121a;
+    --bg-dark-1: #0b1720;
+    --panel: rgba(255,255,255,0.04);
+    --accent: #4ca1af;
+    --muted: #9fb3bd;
+    --glass: rgba(255,255,255,0.03);
+    --trans: 300ms cubic-bezier(.2,.9,.2,1);
+  }
+  /* Reset + layout */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", Roboto, system-ui, -apple-system; -webkit-font-smoothing:antialiased;}
+  body{
+    background: linear-gradient(180deg,var(--bg-dark-0),var(--bg-dark-1));
+    color:#e8f3f2;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    transition:background var(--trans), color var(--trans);
+    overflow:hidden;
+  }
+
+  /* App layout */
+  .app{ width:100%; max-width:1100px; display:grid; grid-template-columns:1fr 360px; gap:20px; align-items:start; }
+  @media (max-width:980px){ .app{ grid-template-columns:1fr; } }
+
+  /* Scene area (left) */
+  .scene {
+    position:relative;
+    border-radius:16px;
+    min-height:520px;
+    overflow:hidden;
+    box-shadow: 0 18px 60px rgba(2,8,15,0.6);
+    background: linear-gradient(180deg,#07121a,#0b1720);
+  }
+  /* stacked canvases (back to front) */
+  .scene canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  /* small top-left badge */
+  .badge {
+    position:absolute; left:18px; top:18px; z-index:40;
+    background:var(--glass); padding:8px 12px; border-radius:999px; color:var(--muted);
+    backdrop-filter: blur(6px); font-weight:600; font-size:13px;
+  }
+
+  /* UI panel (right) */
+  .panel {
+    position:relative;
+    border-radius:14px;
+    padding:18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+  }
+
+  .title { font-size:16px; color:var(--muted); margin-bottom:6px; }
+  .place { font-weight:700; font-size:18px; margin-bottom:6px; }
+  .temp { font-weight:800; font-size:48px; margin:6px 0; letter-spacing:-1px; }
+  .meta { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  .chip { padding:8px 10px; border-radius:999px; background:rgba(255,255,255,0.02); color:var(--muted); font-size:13px; }
+
+  .controls { display:flex; gap:8px; margin-top:12px; }
+  input[type=text]{
+    flex:1; padding:10px 12px; border-radius:10px; border:none; outline:none; background: rgba(255,255,255,0.02); color:inherit;
+  }
+  button {
+    background: linear-gradient(180deg,var(--accent), #2b8e88); color:#082; border:none; padding:10px 12px; border-radius:10px; cursor:pointer;
+  }
+  button:active{ transform: translateY(1px); }
+
+  .small { font-size:13px; color:var(--muted); }
+  label.switch{ display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none; }
+
+  /* slider */
+  .slider-row{ display:flex; align-items:center; gap:8px; margin-top:12px; justify-content:space-between; }
+  input[type=range]{ width:160px; }
+
+  /* loader */
+  .loader{ width:28px; height:28px; border-radius:50%; border:4px solid rgba(255,255,255,0.06); border-top-color:var(--accent); animation:spin 900ms linear infinite; display:inline-block; }
+  @keyframes spin { to{ transform:rotate(360deg); } }
+
+  footer { margin-top:14px; font-size:12px; color:var(--muted); text-align:center; }
+
+  /* small responsive */
+  @media (max-width:520px){
+    .temp{ font-size:36px }
+    .panel { padding:14px }
+  }
 </style>
 </head>
 <body>
-<div id="app">
-  <div class="top-bar">
-    <button id="btn-loc">📍</button>
-    <div>Погода</div>
-    <input id="inputCity" placeholder="Город (Enter)">
+  <div class="app" role="application" aria-label="Погодное приложение">
+    <section class="scene" id="scene">
+      <!-- canvases back->front -->
+      <canvas id="sky"></canvas>
+      <canvas id="clouds"></canvas>
+      <canvas id="precip"></canvas>
+      <canvas id="flash"></canvas>
+
+      <div class="badge" id="sceneBadge">—</div>
+    </section>
+
+    <aside class="panel" aria-live="polite">
+      <div class="title">Погода</div>
+      <div class="place" id="place">—</div>
+      <div class="temp" id="mainTemp">—°C</div>
+      <div class="small" id="feel">—</div>
+
+      <div class="meta">
+        <div class="chip" id="wind">Ветер: —</div>
+        <div class="chip" id="humidity">Влажность: —</div>
+        <div class="chip" id="pressure">Давл.: —</div>
+      </div>
+
+      <div class="controls" style="margin-top:12px">
+        <input id="cityInput" type="text" placeholder="Город (оставьте пустым — геолокация)" aria-label="Город" />
+        <button id="btnFetch">Показать</button>
+        <div id="loader" style="display:none" title="Загрузка"><span class="loader"></span></div>
+      </div>
+
+      <div class="slider-row">
+        <div>
+          <label class="switch small"><input id="unitSwitch" type="checkbox" /> °F</label>
+          <label class="switch small" style="margin-left:10px"><input id="autoTheme" type="checkbox" checked /> Авто день/ночь</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <label class="small">Визуал</label>
+          <input id="sceneSlider" type="range" min="0" max="4" step="1" value="0" />
+        </div>
+      </div>
+
+      <div style="margin-top:10px" class="small" id="weatherDesc">—</div>
+      <div style="margin-top:10px" class="small">Последняя синхронизация: <span id="updated">—</span></div>
+
+      <footer>Данные: Open-Meteo · Дизайн: локально</footer>
+    </aside>
   </div>
-  <div class="main">
-    <div class="hero">
-      <div class="bg-layer" id="bg"></div>
-      <div class="city" id="city">—</div>
-      <div class="temp" id="temp">--°</div>
-      <div class="desc" id="desc">—</div>
-    </div>
-    <div class="forecast">
-      <div class="loader" id="loader">Загрузка…</div>
-      <table id="forecastTable"></table>
-    </div>
-  </div>
-</div>
 
 <script>
-// --- Настройка Open-Meteo ---
-const GEO_API='https://geocoding-api.open-meteo.com/v1/search?name=';
-const FORECAST_API='https://api.open-meteo.com/v1/forecast';
+/* ============================
+  Modern dynamic weather page
+  - Open-Meteo real data (current + hourly for humidity/pressure)
+  - Soft procedural clouds (gradient blobs)
+  - Precipitation (rain / snow) via canvas optimized
+  - Lightning flashes
+  - Geolocation fallback: manual input
+  - Units toggle (°C / °F)
+  - Prefs saved to localStorage
+============================ */
 
-const cityEl=document.getElementById('city');
-const tempEl=document.getElementById('temp');
-const descEl=document.getElementById('desc');
-const bgEl=document.getElementById('bg');
-const loader=document.getElementById('loader');
-const tableEl=document.getElementById('forecastTable');
-const inputCity=document.getElementById('inputCity');
-const btnLoc=document.getElementById('btn-loc');
+const $ = s => document.querySelector(s);
+const canvases = {
+  sky: $('#sky'),
+  clouds: $('#clouds'),
+  precip: $('#precip'),
+  flash: $('#flash')
+};
+const ctx = {
+  sky: canvases.sky.getContext('2d'),
+  clouds: canvases.clouds.getContext('2d'),
+  precip: canvases.precip.getContext('2d'),
+  flash: canvases.flash.getContext('2d')
+};
 
-inputCity.addEventListener('keydown',e=>{if(e.key==='Enter'){fetchByCity(inputCity.value)}})
-btnLoc.addEventListener('click',()=>{if(navigator.geolocation){loader.textContent='Определение местоположения…';navigator.geolocation.getCurrentPosition(p=>{fetchByCoords(p.coords.latitude,p.coords.longitude)},()=>{loader.textContent='Не удалось определить местоположение'})}})
+let DPR = Math.max(1, window.devicePixelRatio || 1);
+function resizeAll(){
+  DPR = Math.max(1, window.devicePixelRatio || 1);
+  for(const c of Object.values(canvases)){
+    c.width = Math.floor(c.clientWidth * DPR) || Math.floor(window.innerWidth * DPR);
+    c.height = Math.floor(c.clientHeight * DPR) || Math.floor(window.innerHeight * DPR);
+    c.style.width = '';
+    c.style.height = '';
+  }
+  cloudField.onResize();
+  precip.onResize();
+  drawSky(); // redraw immediately
+}
+window.addEventListener('resize', debounce(()=>resizeAll(), 180));
 
-fetchByCity('Minsk');
-
-async function fetchByCity(name){
-loader.textContent='Поиск города…';loader.style.display='block';
-try{
-const res=await fetch(GEO_API+encodeURIComponent(name));
-const data=await res.json();
-const first=data.results && data.results[0];
-if(!first) throw new Error('Город не найден');
-fetchForecast(first.latitude,first.longitude,first.name+(first.country?', '+first.country:''));
-}catch(e){loader.textContent='Город не найден';tableEl.innerHTML='';}
+/* =========================
+   Sky gradient (day/dusk/night)
+   ========================= */
+let skyState = {mode:'night'}; // default dark
+function drawSky(){
+  const c = ctx.sky;
+  const w = c.canvas.width, h = c.canvas.height;
+  c.clearRect(0,0,w,h);
+  const g = c.createLinearGradient(0,0,0,h);
+  if(skyState.mode === 'day'){
+    g.addColorStop(0, '#7bd1c8');
+    g.addColorStop(1, '#9fb9ec');
+  } else if(skyState.mode === 'dusk'){
+    g.addColorStop(0, '#ffd89b');
+    g.addColorStop(1, '#19547b');
+  } else {
+    g.addColorStop(0, '#020617');
+    g.addColorStop(1, '#0b1720');
+  }
+  c.fillStyle = g;
+  c.fillRect(0,0,w,h);
 }
 
-async function fetchByCoords(lat,lon){fetchForecast(lat,lon,'—')}
+/* =========================
+   Clouds: soft radial blobs with parallax
+   ========================= */
+const cloudField = (() => {
+  let items = [], density = 12, W=0, H=0;
+  function init(){
+    const canvas = ctx.clouds.canvas;
+    W = canvas.width; H = canvas.height;
+    items = [];
+    // density scales with width
+    const count = Math.max(6, Math.min(30, Math.floor(density * (W/1200) )));
+    for(let i=0;i<count;i++){
+      items.push({
+        x: Math.random()*W,
+        y: Math.random()*H*0.5,
+        size: 90 + Math.random()*320,
+        vx: 0.03 + Math.random()*0.18,
+        alpha: 0.06 + Math.random()*0.18,
+        wobble: Math.random()*Math.PI*2
+      });
+    }
+  }
+  function onResize(){ init(); }
+  function drawOne(ctx, x, y, size, alpha){
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // multiple layered radial gradients -> soft cloud
+    const g1 = ctx.createRadialGradient(x, y, size*0.05, x, y, size*0.9);
+    g1.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g1.addColorStop(0.45, 'rgba(255,255,255,0.6)');
+    g1.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g1;
+    ctx.beginPath();
+    ctx.ellipse(x, y, size*1.05, size*0.6, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+  function update(dt){
+    const c = ctx.clouds;
+    c.clearRect(0,0,c.canvas.width,c.canvas.height);
+    for(const p of items){
+      p.x += p.vx * dt * DPR;
+      p.wobble += 0.001*dt;
+      p.y += Math.sin(p.wobble) * 0.02 * DPR;
+      if(p.x - p.size > c.canvas.width) p.x = -p.size;
+      drawOne(c, p.x, p.y, p.size, p.alpha);
+    }
+  }
+  init();
+  return {update, onResize};
+})();
 
-async function fetchForecast(lat,lon,prettyName){
-loader.textContent='Загрузка прогноза…';loader.style.display='block';
-tableEl.innerHTML='';
-try{
-const params=new URLSearchParams({latitude:lat,longitude:lon,current_weather:'true',daily:'temperature_2m_max,temperature_2m_min,weathercode',timezone:'auto'});
-const res=await fetch(`${FORECAST_API}?${params.toString()}`);
-const data=await res.json();
-renderData(data,prettyName);
-}catch(e){loader.textContent='Ошибка загрузки';console.error(e);}
+/* =========================
+   Precipitation system optimized
+   - rain / snow
+   - particle count depends on device width (performance)
+   ========================= */
+const precip = (() => {
+  let particles = [], mode = 'none';
+  function setMode(m){
+    mode = m;
+    reset();
+  }
+  function reset(){
+    particles = [];
+    const c = ctx.precip.canvas;
+    const W = c.width, H = c.height;
+    // density: fewer particles on small screens
+    const base = (W > 1400) ? 220 : (W > 900) ? 140 : 80;
+    const count = Math.max(20, Math.min(1000, Math.floor(base * (DPR))));
+    for(let i=0;i<count;i++){
+      particles.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        vx: (Math.random()-0.5)*0.4,
+        vy: (mode==='snow' ? (0.3+Math.random()*0.8) : (6 + Math.random()*12)),
+        len: (mode==='snow' ? (2+Math.random()*5) : (10+Math.random()*28)),
+        size: (mode==='snow' ? 1 + Math.random()*2 : 1),
+        rot: Math.random()*Math.PI*2
+      });
+    }
+  }
+  function onResize(){ reset(); }
+  function update(dt){
+    const c = ctx.precip;
+    c.clearRect(0,0,c.canvas.width,c.canvas.height);
+    if(mode==='none') return;
+    c.save();
+    if(mode==='rain'){
+      c.strokeStyle = 'rgba(255,255,255,0.45)';
+      c.lineWidth = 1 * DPR;
+      for(const p of particles){
+        p.x += p.vx * dt * DPR;
+        p.y += p.vy * dt * DPR;
+        c.beginPath();
+        c.moveTo(p.x, p.y);
+        c.lineTo(p.x - (p.vx*1.5*DPR), p.y - p.len*DPR);
+        c.stroke();
+        if(p.y > c.canvas.height + 30*DPR){
+          p.x = Math.random()*c.canvas.width;
+          p.y = -10 * DPR - Math.random()*200*DPR;
+        }
+      }
+    } else if(mode==='snow'){
+      for(const p of particles){
+        p.x += Math.sin(p.rot) * 0.4 * DPR + p.vx * dt * DPR;
+        p.y += p.vy * 0.35 * dt * DPR;
+        p.rot += 0.01;
+        c.beginPath();
+        c.fillStyle = 'rgba(255,255,255,0.95)';
+        c.arc(p.x, p.y, p.size * DPR, 0, Math.PI*2);
+        c.fill();
+        if(p.y > c.canvas.height + 20*DPR){
+          p.x = Math.random()*c.canvas.width;
+          p.y = -10 * DPR - Math.random()*200*DPR;
+        }
+      }
+    }
+    c.restore();
+  }
+  return {setMode, update, onResize};
+})();
+
+/* =========================
+   Lightning: soft radial flash on flash canvas
+   ========================= */
+const lightning = (() => {
+  let handle = null;
+  function flash(strength=0.9, duration=160){
+    const c = ctx.flash;
+    const w = c.canvas.width, h = c.canvas.height;
+    const start = performance.now();
+    function frame(){
+      const t = performance.now() - start;
+      c.clearRect(0,0,w,h);
+      const a = Math.max(0, strength * (1 - t/duration));
+      if(a <= 0){ c.clearRect(0,0,w,h); return; }
+      const grad = c.createRadialGradient(w*0.5, h*0.15, 10, w*0.5, h*0.15, Math.max(w,h));
+      grad.addColorStop(0, `rgba(255,255,255,${a*0.9})`);
+      grad.addColorStop(0.6, `rgba(255,255,255,${a*0.25})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = grad;
+      c.fillRect(0,0,w,h);
+      requestAnimationFrame(frame);
+    }
+    frame();
+  }
+  function schedule(){
+    stop();
+    function loop(){
+      const delay = 1100 + Math.random()*3600;
+      handle = setTimeout(()=>{
+        flash(0.8 + Math.random()*0.35, 100 + Math.random()*300);
+        if(Math.random() > 0.6) setTimeout(()=>flash(0.6 + Math.random()*0.4, 80 + Math.random()*220), 120 + Math.random()*280);
+        loop();
+      }, delay);
+    }
+    loop();
+  }
+  function stop(){ if(handle){ clearTimeout(handle); handle = null; } }
+  return {flash, schedule, stop};
+})();
+
+/* =========================
+   Animation driver
+   ========================= */
+let lastTs = performance.now();
+function loop(ts){
+  const dt = Math.min(60, ts - lastTs) * 0.06;
+  lastTs = ts;
+  drawSky();
+  cloudField.update(dt);
+  precip.update(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* =========================
+   Weather API logic
+   ========================= */
+const weatherDescriptions = {
+  0: "Ясно", 1: "Преимущественно ясно", 2: "Переменная облачность", 3: "Пасмурно",
+  45: "Туман", 48: "Иней", 51: "Слабый моросящий дождь", 53: "Умеренный моросящий дождь",
+  55: "Сильный моросящий дождь", 61: "Слабый дождь", 63: "Умеренный дождь",
+  65: "Сильный дождь", 71: "Слабый снег", 73: "Умеренный снег", 75: "Сильный снег",
+  80: "Ливень",81: "Сильный ливень",82: "Очень сильный ливень",95: "Гроза",96: "Гроза с градом",99: "Сильная гроза с градом"
+};
+
+// Helper: fetch current + hourly humidity/pressure to show richer meta
+async function fetchWeather(lat, lon){
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+              `&current_weather=true&hourly=relativehumidity_2m,pressure_msl&timezone=auto`;
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('open-meteo error');
+  return r.json();
+}
+// geocode
+async function geocode(q){
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=ru`;
+  const r = await fetch(url);
+  if(!r.ok) throw new Error('geocode error');
+  return r.json();
 }
 
-function renderData(data,forcedName){
-loader.style.display='none';
-const cur=data.current_weather;
-cityEl.textContent=forcedName||'—';
-tempEl.textContent=Math.round(cur.temperature)+'°';
-descEl.textContent=codeToText(cur.weathercode);
-setBG(cur.weathercode);
-buildTable(data.daily);
+/* UI nodes */
+const ui = {
+  place: $('#place'),
+  mainTemp: $('#mainTemp'),
+  feel: $('#feel'),
+  wind: $('#wind'),
+  humidity: $('#humidity'),
+  pressure: $('#pressure'),
+  updated: $('#updated'),
+  weatherDesc: $('#weatherDesc'),
+  loader: $('#loader'),
+  badge: $('#sceneBadge'),
+  sceneSlider: $('#sceneSlider'),
+  unitSwitch: $('#unitSwitch'),
+  autoTheme: $('#autoTheme'),
+  cityInput: $('#cityInput'),
+  btnFetch: $('#btnFetch')
+};
+
+let userMovedSlider = false;
+function sceneIndexFromName(name){
+  switch(name){
+    case 'clear': return 0;
+    case 'cloudy': return 1;
+    case 'rain': return 2;
+    case 'thunder': return 3;
+    case 'snow': return 4;
+    default: return 0;
+  }
+}
+function indexToScene(i){
+  switch(Number(i)){
+    case 0: return 'clear';
+    case 1: return 'cloudy';
+    case 2: return 'rain';
+    case 3: return 'thunder';
+    case 4: return 'snow';
+    default: return 'clear';
+  }
+}
+function codeToScene(code){
+  if([95,96,99].includes(code)) return 'thunder';
+  if([61,63,65,80,81,82,51,53,55].includes(code)) return 'rain';
+  if([71,73,75,77].includes(code)) return 'snow';
+  if([2,3,45,48].includes(code)) return 'cloudy';
+  return 'clear';
 }
 
-function buildTable(daily){
-tableEl.innerHTML='';
-const dates=daily.time||[],maxs=daily.temperature_2m_max||[],mins=daily.temperature_2m_min||[],codes=daily.weathercode||[];
-for(let i=0;i<Math.min(7,dates.length);i++){
-const tr=document.createElement('tr');
-const tdDay=document.createElement('td');tdDay.className='day';tdDay.textContent=formatDay(dates[i]);tr.appendChild(tdDay);
-const tdTemp=document.createElement('td');tdTemp.className='temps';tdTemp.innerHTML=`<b>${Math.round(maxs[i])}°</b>/<small>${Math.round(mins[i])}°</small>`;tr.appendChild(tdTemp);
-const tdIcon=document.createElement('td');tdIcon.className='icon';tdIcon.innerHTML=iconBase64(codes[i]);tr.appendChild(tdIcon);
-tableEl.appendChild(tr);
-}
+function toF(c){ return Math.round(c * 9/5 + 32); }
+function toC(f){ return Math.round((f - 32) * 5/9); }
+
+/* display and apply scene */
+function applySceneFromSlider(){
+  const mode = indexToScene(ui.sceneSlider.value);
+  ui.badge.textContent = mode.charAt(0).toUpperCase()+mode.slice(1);
+  switch(mode){
+    case 'clear':
+      precip.setMode('none');
+      skyState.mode = ui.autoTheme.checked ? guessDayNight() : 'day';
+      lightning.stop();
+      break;
+    case 'cloudy':
+      precip.setMode('none');
+      skyState.mode = 'dusk';
+      lightning.stop();
+      break;
+    case 'rain':
+      precip.setMode('rain');
+      skyState.mode = 'dusk';
+      lightning.stop();
+      break;
+    case 'thunder':
+      precip.setMode('rain');
+      skyState.mode = 'night';
+      lightning.schedule();
+      break;
+    case 'snow':
+      precip.setMode('snow');
+      skyState.mode = 'dusk';
+      lightning.stop();
+      break;
+  }
+  updateThemeBackground();
 }
 
-function formatDay(iso){const d=new Date(iso+'T00:00:00');return d.toLocaleDateString('ru-RU',{weekday:'short'})}
+ui.sceneSlider.addEventListener('input', ()=>{
+  userMovedSlider = true;
+  applySceneFromSlider();
+  if(ui.sceneSlider.value != 3) lightning.stop();
+});
 
-function codeToText(code){
-const map={0:'Ясно',1:'Частично ясно',2:'Переменная облачность',3:'Пасмурно',45:'Туман',48:'Туман',51:'Морось',53:'Морось',55:'Сильная морось',61:'Дождь небольшой',63:'Дождь',65:'Сильный дождь',66:'Дождь (ледяной)',67:'Сильный дождь (ледяной)',71:'Снег',73:'Снег',75:'Сильный снег',77:'Град',80:'Ливни',81:'Ливни сильные',82:'Ливни очень сильные',85:'Снег',86:'Снег сильный',95:'Гроза',96:'Гроза с градом',99:'Гроза с градом'};
-return map[code]||'—';
+/* guess day/night */
+function guessDayNight(){
+  const h = new Date().getHours();
+  if(h>=6 && h<18) return 'day';
+  if(h>=18 && h<20) return 'dusk';
+  return 'night';
+}
+function updateThemeBackground(){
+  if(ui.autoTheme.checked){
+    if(skyState.mode === 'night') document.body.style.background = 'linear-gradient(180deg,#020617,#07121a)';
+    else if(skyState.mode === 'dusk') document.body.style.background = 'linear-gradient(180deg,#2b1f3a,#7a6b9b)';
+    else document.body.style.background = 'linear-gradient(180deg,#09303a,#1e4870)';
+  } else {
+    document.body.style.background = 'linear-gradient(180deg,#07121a,#0b1720)';
+  }
 }
 
-function setBG(code){
-let g='linear-gradient(#4aa3ff,#0b2b4a)';
-if([1,2,3,45,48].includes(code)) g='linear-gradient(#9fb7d8,#415a73)';
-if([51,53,55,61,63,65,80,81,82].includes(code)) g='linear-gradient(#6b93b5,#243b4b)';
-if([71,73,75,85,86,77].includes(code)) g='linear-gradient(#dbeefc,#6f8fa7)';
-if([95,96,99].includes(code)) g='linear-gradient(#6b6f74,#1b2328)';
-bgEl.style.background=g;
+/* =========================
+   Fetch + update UI
+   ========================= */
+async function displayWeatherFor(lat, lon, label){
+  ui.loader.style.display = 'inline-block';
+  try{
+    const data = await fetchWeather(lat, lon);
+    const w = data.current_weather;
+    if(!w) throw new Error('no current weather');
+    const code = w.weathercode;
+    const scene = codeToScene(code);
+
+    // humidity & pressure: hourly arrays (find nearest index to time)
+    let humidity = '—', pressure = '—';
+    if(data.hourly && data.hourly.time){
+      // find index of current time (match date string)
+      const times = data.hourly.time;
+      // current time from current_weather.time
+      const curTime = w.time;
+      let idx = times.indexOf(curTime);
+      if(idx === -1) {
+        // fallback: use last value
+        idx = times.length - 1;
+      }
+      if(data.hourly.relativehumidity_2m) humidity = data.hourly.relativehumidity_2m[idx] + '%';
+      if(data.hourly.pressure_msl) pressure = data.hourly.pressure_msl[idx] + ' hPa';
+    }
+
+    // units
+    const useF = ui.unitSwitch.checked;
+    const tempC = Math.round(w.temperature);
+    const tempStr = useF ? `${toF(tempC)}°F` : `${tempC}°C`;
+
+    ui.mainTemp.textContent = tempStr;
+    ui.feel.textContent = `Ощущается как ${useF ? toF(tempC)+'°F' : tempC+'°C'}`;
+    ui.wind.textContent = `Ветер: ${Math.round(w.windspeed)} км/ч`;
+    ui.humidity.textContent = `Влажность: ${humidity}`;
+    ui.pressure.textContent = `Давл.: ${pressure}`;
+    ui.updated.textContent = (w.time || new Date().toLocaleString());
+    ui.place.textContent = label || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+    ui.weatherDesc.textContent = `${weatherDescriptions[code] || 'Неизвестно'} · код ${code}`;
+
+    // scene apply (unless user forced)
+    if(!userMovedSlider) ui.sceneSlider.value = sceneIndexFromName(scene);
+    applySceneFromSlider();
+
+    saveLastLoc({lat, lon, place: label||''});
+  }catch(e){
+    console.error(e);
+    ui.weatherDesc.textContent = 'Ошибка при получении погоды';
+  }finally{
+    ui.loader.style.display = 'none';
+  }
 }
 
-// --- Иконки в Base64 для iOS6 ---
-function iconBase64(code){
-if(code===0) return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="sun"/>';
-if([1,2].includes(code)) return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="partly_cloudy"/>';
-if([3,45,48].includes(code)) return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="cloudy"/>';
-if([51,53,55,61,63,65,80,81,82].includes(code)) return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="rain"/>';
-if([71,73,75,85,86,77].includes(code)) return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="snow"/>';
-if([95,96,99].includes(code)) return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="storm"/>';
-return'<img class="weather-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAA..." alt="default"/>';
+/* =========================
+   Geolocation / controls
+   ========================= */
+async function tryGeolocation(){
+  if(!navigator.geolocation) return null;
+  try{
+    const pos = await new Promise((res, rej)=> navigator.geolocation.getCurrentPosition(res, rej, {timeout:8000}));
+    return {lat: pos.coords.latitude, lon: pos.coords.longitude};
+  }catch(e){
+    return null;
+  }
 }
+
+ui.btnFetch.addEventListener('click', async ()=>{
+  const q = ui.cityInput.value.trim();
+  if(!q){
+    ui.loader.style.display = 'inline-block';
+    try{
+      const loc = await tryGeolocation();
+      if(loc) await displayWeatherFor(loc.lat, loc.lon, 'Ваше местоположение');
+      else ui.weatherDesc.textContent = 'Разрешите геолокацию или введите город';
+    }finally{ ui.loader.style.display = 'none'; }
+    return;
+  }
+  ui.loader.style.display = 'inline-block';
+  try{
+    const geo = await geocode(q);
+    if(!geo || !geo.results || geo.results.length === 0){
+      ui.weatherDesc.textContent = 'Город не найден';
+    } else {
+      const r = geo.results[0];
+      await displayWeatherFor(r.latitude, r.longitude, `${r.name}, ${r.country}`);
+    }
+  }catch(e){
+    console.error(e);
+    ui.weatherDesc.textContent = 'Ошибка геокодирования';
+  }finally{ ui.loader.style.display = 'none'; }
+});
+
+/* toggle units */
+ui.unitSwitch.addEventListener('change', ()=>{
+  const last = loadLastLoc();
+  if(last) displayWeatherFor(last.lat, last.lon, last.place||'');
+  savePrefs();
+});
+ui.autoTheme.addEventListener('change', ()=>{ applySceneFromSlider(); savePrefs(); });
+
+/* =========================
+   Persistence helper
+   ========================= */
+const LS_KEY = 'ahhweather_v1';
+function savePrefs(){
+  const p = { unit: ui.unitSwitch.checked, autoTheme: ui.autoTheme.checked, scene: ui.sceneSlider.value };
+  localStorage.setItem(LS_KEY+'_prefs', JSON.stringify(p));
+}
+function loadPrefs(){
+  try{
+    const p = JSON.parse(localStorage.getItem(LS_KEY+'_prefs'));
+    if(p){
+      ui.unitSwitch.checked = !!p.unit;
+      ui.autoTheme.checked = (typeof p.autoTheme === 'undefined') ? true : !!p.autoTheme;
+      if(typeof p.scene !== 'undefined') ui.sceneSlider.value = p.scene;
+    } else { ui.autoTheme.checked = true; }
+  }catch(e){ ui.autoTheme.checked = true; }
+  applySceneFromSlider();
+}
+function saveLastLoc(obj){ localStorage.setItem(LS_KEY+'_last', JSON.stringify(obj)); }
+function loadLastLoc(){ try{ return JSON.parse(localStorage.getItem(LS_KEY+'_last')); }catch(e){return null} }
+
+/* =========================
+   Startup: resize canvases, load prefs, try last loc / geolocate
+   ========================= */
+function init(){
+  // size canvases to elements
+  resizeAll();
+  loadPrefs();
+
+  // try last location -> geolocation -> wait for user
+  const last = loadLastLoc();
+  if(last && last.lat && last.lon){
+    displayWeatherFor(last.lat, last.lon, last.place||'Последняя локация');
+  } else {
+    // try geolocation
+    tryGeolocation().then(loc=>{
+      if(loc) displayWeatherFor(loc.lat, loc.lon, 'Ваше местоположение');
+      else ui.weatherDesc.textContent = 'Включи геолокацию или введи город';
+    });
+  }
+}
+window.addEventListener('load', ()=>{ init(); });
+
+/* =========================
+   Utilities
+   ========================= */
+function debounce(fn,t){ let h; return (...a)=>{ clearTimeout(h); h=setTimeout(()=>fn(...a),t)} }
+
+function sceneIndexFromName(name){
+  switch(name){
+    case 'clear': return 0;
+    case 'cloudy': return 1;
+    case 'rain': return 2;
+    case 'thunder': return 3;
+    case 'snow': return 4;
+    default: return 0;
+  }
+}
+
+/* =========================
+   Make sure canvases have initial size now (and cloud/precip have data)
+   ========================= */
+resizeAll(); // ensure initial sizing done
+
+// Save prefs periodically (simple)
+setInterval(savePrefs, 5000);
+
+/* That's it — end of script */
 </script>
 </body>
 </html>
